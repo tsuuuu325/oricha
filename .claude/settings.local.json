@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/c/Users/shoot/Downloads/oricha/oricha/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(which python3 *)",
+      "Bash(python --version)",
+      "Bash(py --version)",
+      "Bash(python3 -c \"print\\('hi'\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(node scripts/convert-stations.js station20260618free.csv line20260618free.csv stations.js)",
+      "Bash(rm -f .tmpcheck.js)",
+      "Bash(cd \"/c/Users/shoot/Downloads/oricha/oricha\" && rm -f line20260618free.csv line20260409free.csv line20260323free.csv line20250604free.csv line20250529free.csv station20260618free.csv station20260528free.csv station20260430free.csv station20260409free.csv station20260206free.csv station20251211free.csv join20260618.csv join20260409.csv join20260226.csv && ls)"
+    ]
+  }
+}
