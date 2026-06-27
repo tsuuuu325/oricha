@@ -129,6 +129,16 @@
   @keyframes flash{0%,100%{opacity:0}10%,30%,50%{opacity:.85}20%,40%{opacity:0}}
 
   .note{font-size:11px;color:var(--sub);text-align:center;line-height:1.5}
+
+  /* 通知音停止ボタン：鳴っている間だけ表示 */
+  .stopSoundBtn{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    z-index:60; padding:14px 28px; border-radius:999px; border:none;
+    background:var(--alert); color:#1a1208; font-weight:700; font-size:15px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
+  }
+  .stopSoundBtn.show{opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0)}
   @media (prefers-reduced-motion: reduce){
     .status.fire::after{animation:none;opacity:.7}
     .flash.go{animation:none;opacity:.5}
@@ -137,6 +147,7 @@
 </head>
 <body>
   <div class="flash" id="flash"></div>
+  <button class="stopSoundBtn" id="stopSoundBtn" type="button">🔇 音を止める</button>
 
   <header>
     <div class="brand">
@@ -232,7 +243,7 @@
   const el = {
     status:$("status"), targetName:$("targetName"), targetLines:$("targetLines"),
     dist:$("dist"), hint:$("hint"), targets:$("targets"),
-    q:$("q"), sug:$("sug"), gps:$("gps"), flash:$("flash"),
+    q:$("q"), sug:$("sug"), gps:$("gps"), flash:$("flash"), stopSoundBtn:$("stopSoundBtn"),
     notifyDist:$("notifyDist"), alertDist:$("alertDist"),
     watchBtn:$("watchBtn"), demoBtn:$("demoBtn"),
     wakeToggle:$("wakeToggle"), wakeSw:$("wakeSw"), note:$("note"),
@@ -256,26 +267,62 @@
   }
 
   // ---- アラート（音 + フラッシュ + バイブ）----
+  // 通知音は「停止ボタン」を押すまでループし続ける。停止ボタンは今鳴っている音だけを止め、
+  // 次回以降のアラートには影響しない（alertToken を毎回新規発行することで実現）。
   let audioCtx = null;
+  let alertToken = 0;
+  let alertTimer = null;
+  let activeNodes = [];
+
+  function playPing(t, freq){
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.5, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.8);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t); o.stop(t+0.82);
+    const node = { o, g };
+    activeNodes.push(node);
+    o.onended = () => { activeNodes = activeNodes.filter(n => n !== node); };
+  }
+
   function beep(times=3){
     try{
       audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
       if (audioCtx.state === "suspended") audioCtx.resume();
       let t = audioCtx.currentTime;
-      for (let i=0;i<times;i++){
-        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-        o.type = "sine"; o.frequency.value = i%2 ? 880 : 1175; // ピンポン風
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(0.5, t+0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t+0.8);
-        o.connect(g).connect(audioCtx.destination);
-        o.start(t); o.stop(t+0.82);
-        t += 0.9;
-      }
+      for (let i=0;i<times;i++){ playPing(t, i%2 ? 880 : 1175); t += 0.9; } // ピンポン風
     }catch{}
   }
+
+  function alertLoop(token){
+    if (token !== alertToken) return;
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const t = audioCtx.currentTime;
+      playPing(t, 1175);
+      playPing(t+0.9, 880);
+    }catch{}
+    alertTimer = setTimeout(() => alertLoop(token), 1800);
+  }
+
+  function stopAlertSound(){
+    alertToken++; // 次に fireAlert が発行する token と異なる値になるので、今鳴っている分だけ止まる
+    if (alertTimer){ clearTimeout(alertTimer); alertTimer = null; }
+    const now = audioCtx ? audioCtx.currentTime : 0;
+    activeNodes.forEach(({ o, g }) => {
+      try{ g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(0.0001, now); o.stop(now); }catch{}
+    });
+    activeNodes = [];
+    el.stopSoundBtn.classList.remove("show");
+  }
+
   function fireAlert(name){
-    beep(8);
+    alertToken++;
+    alertLoop(alertToken);
+    el.stopSoundBtn.classList.add("show");
     try{ navigator.vibrate && navigator.vibrate([400,150,400,150,600]); }catch{}
     el.flash.classList.remove("go"); void el.flash.offsetWidth; el.flash.classList.add("go");
     if ("Notification" in window && Notification.permission === "granted"){
@@ -366,6 +413,7 @@
     el.gps.classList.remove("live"); el.gps.querySelector("span").textContent = "停止中";
     el.note.textContent = "停止中。";
     releaseWake();
+    stopAlertSound();
     render();
   }
 
@@ -476,6 +524,7 @@
 
   // ---- ボタン ----
   el.watchBtn.addEventListener("click", () => { beep(0); state.watching ? stopWatch() : startWatch(); });
+  el.stopSoundBtn.addEventListener("click", stopAlertSound);
   el.demoBtn.addEventListener("click", startDemo);
 
   // ---- Service Worker 登録 ----
