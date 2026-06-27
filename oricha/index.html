@@ -267,15 +267,15 @@
         o.type = "sine"; o.frequency.value = i%2 ? 880 : 1175; // ピンポン風
         g.gain.setValueAtTime(0.0001, t);
         g.gain.exponentialRampToValueAtTime(0.5, t+0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t+0.32);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.8);
         o.connect(g).connect(audioCtx.destination);
-        o.start(t); o.stop(t+0.34);
-        t += 0.4;
+        o.start(t); o.stop(t+0.82);
+        t += 0.9;
       }
     }catch{}
   }
   function fireAlert(name){
-    beep(4);
+    beep(8);
     try{ navigator.vibrate && navigator.vibrate([400,150,400,150,600]); }catch{}
     el.flash.classList.remove("go"); void el.flash.offsetWidth; el.flash.classList.add("go");
     if ("Notification" in window && Notification.permission === "granted"){
