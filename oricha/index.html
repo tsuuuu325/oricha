@@ -330,6 +330,7 @@
       if (audioCtx.state === "suspended") audioCtx.resume();
       playSiren(audioCtx.currentTime);
     }catch{}
+    try{ navigator.vibrate && navigator.vibrate([250,120,250]); }catch{} // Android向け。iOSはバイブAPI非対応で無視される
     alertTimer = setTimeout(() => alertLoop(token), (SIREN_DUR + 0.15) * 1000);
   }
 
@@ -341,6 +342,7 @@
       try{ g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(0.0001, now); o.stop(now); }catch{}
     });
     activeNodes = [];
+    try{ navigator.vibrate && navigator.vibrate(0); }catch{} // 鳴動中のバイブを即停止
     el.stopSoundBtn.classList.remove("show");
   }
 
@@ -348,7 +350,6 @@
     alertToken++;
     alertLoop(alertToken);
     el.stopSoundBtn.classList.add("show");
-    try{ navigator.vibrate && navigator.vibrate([400,150,400,150,600]); }catch{}
     el.flash.classList.remove("go"); void el.flash.offsetWidth; el.flash.classList.add("go");
     if ("Notification" in window && Notification.permission === "granted"){
       try{ new Notification("まもなく "+name, { body:"降車駅が近づいています", silent:false }); }catch{}
