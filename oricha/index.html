@@ -483,6 +483,18 @@
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
   }
 
+  // ---- 起動時に位置情報の許可ポップアップを先出しする ----
+  // （クリックを待たずに getCurrentPosition を呼ぶと、多くのブラウザは
+  //   その場で許可ダイアログを表示する。失敗してもここでは無視してよい。）
+  if ("geolocation" in navigator){
+    navigator.geolocation.getCurrentPosition(() => {}, () => {}, { maximumAge: 60000, timeout: 10000 });
+  }
+
+  // ---- Google検索アプリ等のアプリ内ブラウザでは位置情報が動かないことがあるため注意を表示 ----
+  if (/\bGSA\/|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent)){
+    el.note.textContent = "このアプリ内ブラウザでは位置情報が正しく動かないことがあります。共有メニューなどから Safari / Chrome で開いてください。";
+  }
+
   render();
 })();
 </script>
