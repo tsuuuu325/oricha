@@ -194,9 +194,9 @@
       <div class="field">
         <label>本アラート（鳴る）</label>
         <select id="alertDist">
-          <option value="800">800 m 手前</option>
           <option value="500" selected>500 m 手前</option>
           <option value="300">300 m 手前</option>
+          <option value="150">150 m 手前</option>
         </select>
       </div>
     </div>
@@ -250,6 +250,9 @@
   };
   el.notifyDist.value = String(state.notifyDist);
   el.alertDist.value = String(state.alertDist);
+  if (el.alertDist.value !== String(state.alertDist)){ // 廃止された選択肢（800等）が残っていた場合の救済
+    state.alertDist = 500; el.alertDist.value = "500"; store.set("oricha.alert", 500);
+  }
   el.wakeSw.classList.toggle("on", state.wakeWanted);
 
   // ---- 距離計算（ハバーサイン, m）----
@@ -287,6 +290,30 @@
     o.onended = () => { activeNodes = activeNodes.filter(n => n !== node); };
   }
 
+  // 警告サイレン風（矢のこぎり波で上下にうねる音 + 2倍音を重ねて迫力を出す）
+  const SIREN_DUR = 0.7;
+  function playSiren(t){
+    [
+      { type:"sawtooth", gain:0.9, lo:500, hi:1100 },
+      { type:"square",   gain:0.35, lo:1000, hi:2200 },
+    ].forEach(({ type, gain, lo, hi }) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(lo, t);
+      o.frequency.linearRampToValueAtTime(hi, t + SIREN_DUR/2);
+      o.frequency.linearRampToValueAtTime(lo, t + SIREN_DUR);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain, t + 0.04);
+      g.gain.setValueAtTime(gain, t + SIREN_DUR - 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + SIREN_DUR);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t); o.stop(t + SIREN_DUR + 0.02);
+      const node = { o, g };
+      activeNodes.push(node);
+      o.onended = () => { activeNodes = activeNodes.filter(n => n !== node); };
+    });
+  }
+
   function beep(times=3){
     try{
       audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
@@ -301,11 +328,9 @@
     try{
       audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
       if (audioCtx.state === "suspended") audioCtx.resume();
-      const t = audioCtx.currentTime;
-      playPing(t, 1175);
-      playPing(t+0.9, 880);
+      playSiren(audioCtx.currentTime);
     }catch{}
-    alertTimer = setTimeout(() => alertLoop(token), 1800);
+    alertTimer = setTimeout(() => alertLoop(token), (SIREN_DUR + 0.15) * 1000);
   }
 
   function stopAlertSound(){
