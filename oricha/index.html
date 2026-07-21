@@ -330,7 +330,6 @@
       if (audioCtx.state === "suspended") audioCtx.resume();
       playSiren(audioCtx.currentTime);
     }catch{}
-    try{ navigator.vibrate && navigator.vibrate([250,120,250]); }catch{} // Android向け。iOSはバイブAPI非対応で無視される
     alertTimer = setTimeout(() => alertLoop(token), (SIREN_DUR + 0.15) * 1000);
   }
 
@@ -342,7 +341,6 @@
       try{ g.gain.cancelScheduledValues(now); g.gain.setValueAtTime(0.0001, now); o.stop(now); }catch{}
     });
     activeNodes = [];
-    try{ navigator.vibrate && navigator.vibrate(0); }catch{} // 鳴動中のバイブを即停止
     el.stopSoundBtn.classList.remove("show");
   }
 
